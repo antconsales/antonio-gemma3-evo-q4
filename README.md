@@ -20,9 +20,11 @@ Antonio Gemma3 Evo Q4 is not just another quantized LLM. It's a **micro-intellig
 - 🌱 **Auto-evolves** — Generates new reasoning rules from accumulated neurons
 - 🔒 **100% Offline** — Runs completely local on Raspberry Pi 4 (4GB RAM)
 - 🌐 **Bilingual** — Auto-detects IT/EN and responds in the same language
-- ⚡ **Fast** — 3.67 tokens/s on Pi 4 with Q4_0 quantization
+- ⚡ **Fast** — 3.32 tokens/s sustained on Pi 4 with Q4_K_M quantization
 
 > "The little brain that grows with you" 🧠
+
+📊 **[View Complete Benchmark Report](BENCHMARK_REPORT.md)** — Performance, reliability, and stability metrics
 
 ---
 

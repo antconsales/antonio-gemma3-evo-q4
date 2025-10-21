@@ -248,5 +248,5 @@ Antonio Gemma3 Smart Q4 achieves **production-grade performance** on Raspberry P
 
 - **GitHub**: https://github.com/antconsales/antonio-gemma3-evo-q4
 - **HuggingFace**: https://huggingface.co/chill123/antonio-gemma3-evo-q4
-- **Ollama**: https://ollama.com/antconsales/antonio-gemma3-smart-q4
+- **Ollama**: https://ollama.com/antconsales/antonio-gemma3-evo-q4
 - **Donate**: https://www.paypal.com/donate/?business=58ML44FNPK66Y&currency_code=EUR

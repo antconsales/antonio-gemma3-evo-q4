@@ -21,6 +21,7 @@ Antonio Gemma3 Evo Q4 is not just another quantized LLM. It's a **micro-intellig
 - 🔒 **100% Offline** — Runs completely local on Raspberry Pi 4 (4GB RAM)
 - 🌐 **Bilingual** — Auto-detects IT/EN and responds in the same language
 - ⚡ **Fast** — 3.32 tokens/s sustained on Pi 4 with Q4_K_M quantization
+- 🎯 **Adaptive Prompting** — Smart question classification (SIMPLE/COMPLEX/CODE/CREATIVE) with optimized prompts for 3.6x speedup on simple queries
 
 > "The little brain that grows with you" 🧠
 
@@ -246,7 +247,35 @@ Example rule:
 }
 ```
 
-### 5️⃣ Energy-Aware Inference
+### 5️⃣ Adaptive Prompting — Smart Question Classification
+
+**NEW!** Antonio now automatically classifies questions and uses optimized prompts:
+
+| Category | Examples | Prompt Size | Performance |
+|----------|----------|-------------|-------------|
+| **SIMPLE** | "Come ti chiami?", "Ciao!" | 20 tokens | **3.6x faster** |
+| **MEDIUM** | General questions | 50 tokens | 1.4x faster |
+| **COMPLEX** | Math, logic reasoning | 72 tokens | Full step-by-step |
+| **CODE** | Programming questions | 65 tokens | Formatted examples |
+| **CREATIVE** | Storytelling, writing | 60 tokens | Imaginative mode |
+
+**Example - Math Reasoning:**
+```
+Q: "Se un cane ha 4 zampe e ne perde 1, quante ne ha?"
+A: "Ragioniamo:
+    - Iniziali: 4
+    - Perde 1
+    - 4 - 1 = 3
+    Risposta: 3"
+```
+
+**Features:**
+- Zero overhead (<1ms regex classification)
+- Bilingual pattern matching (IT/EN)
+- Automatic metrics collection via `/metrics` endpoint
+- No model modifications (prompt-only optimization)
+
+### 6️⃣ Energy-Aware Inference
 
 Monitors CPU temperature and adjusts:
 

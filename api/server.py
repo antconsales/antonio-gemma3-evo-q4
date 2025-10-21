@@ -17,6 +17,8 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
 from core.evomemory import EvoMemoryDB, Neuron, NeuronStore, RAGLite
+from core.question_classifier import classify_question, get_system_prompt, Complexity
+from core.metrics_collector import MetricsCollector
 from core.inference import LlamaInference, ConfidenceScorer
 
 
@@ -88,19 +90,50 @@ class AppState:
         self.start_time = datetime.now()
 
         # System prompt
-        self.system_prompt = """Tu sei Antonio Gemma3 Evo Q4, un'intelligenza artificiale auto-evolutiva che gira offline.
+        self.system_prompt = """You are Antonio, an AI that thinks step-by-step before answering.
+
+Tu sei Antonio Gemma3 Evo Q4, un'intelligenza artificiale auto-evolutiva.
+
+REASONING RULES:
+1. Math subtraction: "X has N, loses M" → Calculate: N - M
+2. Math addition: "X has N, adds M" → Calculate: N + M  
+3. If uncertain → Admit "Non sono sicuro / I'm not sure"
+
+PROCESS:
+1. Understand the question
+2. If math/logic: break into steps and show reasoning
+3. Give final answer
+
+EXAMPLES:
+
+Q: Se un cane ha 4 zampe e ne perde 1, quante ne ha?
+A: Ragioniamo:
+   - Zampe iniziali: 4
+   - Zampe perse: 1
+   - Calcolo: 4 - 1 = 3
+   Risposta: 3 zampe.
+
+Q: If I have 10 coins and lose 3, how many left?
+A: Step-by-step:
+   - Initial: 10
+   - Lost: 3
+   - Calculation: 10 - 3 = 7
+   Answer: 7 coins.
 
 Caratteristiche:
-- Impari da ogni conversazione salvando "neuroni" in memoria locale
-- Rilevi automaticamente la lingua (IT/EN) e rispondi nella stessa
-- Assegni un livello di confidenza (0-1) ad ogni risposta
-- Se non sei sicuro, lo dichiari e chiedi chiarimenti
-- Puoi controllare GPIO, file system, e media (con consenso utente)
+- Impari da ogni conversazione (EvoMemory)
+- Rilevi lingua (IT/EN) e rispondi nella stessa
+- Assegni confidenza (0-1) ad ogni risposta
+- Controlli GPIO/filesystem (con consenso)
 
 Comportamento:
 - Sii conciso, pratico e amichevole
 - Spiega passo per passo
 - Chiedi prima di eseguire azioni sensibili
+        # Adaptive reasoning based on complexity
+        complexity, _ = classify_question(request.message)
+        adaptive_prompt = get_system_prompt(complexity)
+        
 - Mantieni etica e privacy
 
 You are Antonio Gemma3 Evo Q4, a self-learning offline AI.
@@ -120,6 +153,7 @@ Behavior:
 """
 
 state = AppState()
+metrics = MetricsCollector()
 
 
 # ============================================================================
@@ -142,29 +176,15 @@ async def startup():
 
     # LLM
     # Cerca il modello
-    model_candidates = [
-        Path(__file__).parent.parent.parent / "artifacts/gemma3-1b-q4_0.gguf",
-        Path(__file__).parent.parent / "data/models/gemma3-1b-q4_0.gguf",
-    ]
-
-    model_path = None
-    for candidate in model_candidates:
-        if candidate.exists():
-            model_path = candidate
-            break
-
-    if not model_path:
-        print("⚠️  Warning: No model found, running in API-only mode")
-    else:
-        llama_cli = Path(__file__).parent.parent.parent / "build/bin/llama-cli"
-        if llama_cli.exists():
-            state.llama = LlamaInference(
-                model_path=str(model_path),
-                llama_cli_path=str(llama_cli),
-            )
-            print(f"✓ Loaded model: {model_path.name}")
-        else:
-            print("⚠️  llama-cli not found, running in API-only mode")
+    # Use Ollama (always available on Pi)
+    try:
+        state.llama = LlamaInference(
+            model_path="antconsales/antonio-gemma3-evo-q4"
+        )
+        print("✓ Loaded model via Ollama: antconsales/antonio-gemma3-evo-q4")
+    except Exception as e:
+        print(f"⚠️  Warning: Could not load Ollama model: {e}")
+        print("⚠️  Running in API-only mode")
 
     stats = state.db.get_stats()
     print(f"✓ EvoMemory loaded: {stats['neurons']} neurons, {stats['rules']} rules")
@@ -210,6 +230,13 @@ async def get_stats():
     )
 
 
+
+
+@app.get("/metrics")
+async def get_metrics():
+    """Get adaptive prompting performance metrics"""
+    return metrics.get_stats()
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     """Chat endpoint principale"""
@@ -227,10 +254,14 @@ async def chat(request: ChatRequest):
     if rag_context:
         user_prompt = f"{rag_context}\n### Domanda attuale:\n{request.message}"
 
+    # Classify question complexity for adaptive prompting
+    complexity, _ = classify_question(request.message)
+    adaptive_prompt = get_system_prompt(complexity)
+
     # Generate
     result = state.llama.generate(
         prompt=user_prompt,
-        system_prompt=state.system_prompt,
+        system_prompt=adaptive_prompt,
     )
 
     # Score confidence
@@ -258,6 +289,21 @@ async def chat(request: ChatRequest):
     neuron_count = state.db.get_stats()["neurons"]
     if neuron_count % 10 == 0:
         state.rag.index_neurons(max_neurons=500)
+
+    
+    
+    # Log metrics for adaptive prompting analysis
+    import time
+    metrics.log_request(
+        question=request.message,
+        complexity=complexity,
+        complexity_reason=complexity_reason,
+        response=result["output"],
+        tokens_generated=result["tokens_generated"],
+        tokens_per_second=result["tokens_per_second"],
+        response_time_ms=result.get("response_time_ms", 0),
+        confidence=confidence
+    )
 
     return ChatResponse(
         response=result["output"],
@@ -315,6 +361,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
             # Simula streaming (chunked response)
             await websocket.send_json({"type": "thinking", "data": "🤔"})
+
 
             # Generate
             request = ChatRequest(message=message, use_rag=data.get("use_rag", True))

@@ -41,6 +41,12 @@ def classify_question(text: str) -> Tuple[Complexity, str]:
         r'\d+\s*(più|meno|per|diviso|\+|-|×|÷|perde|loses|aggiunge|adds)',
         r'(quante|quanti|how many).*\d+',
         r'\d+.*e.*\d+',
+        # Written numbers in Italian
+        r'(uno|una|due|tre|quattro|cinque|sei|sette|otto|nove|dieci).*(?:zampe|zampa|mele|mela|euro|oggetti|oggetto)',
+        r'(?:perde|perdere|aggiunge|aggiungere|mangia|mangiare|prende|prendere).*(?:uno|una|due|tre|quattro|cinque)',
+        # Written numbers in English
+        r'(one|two|three|four|five|six|seven|eight|nine|ten).*(?:legs|leg|apples|apple|items|item)',
+        r'(?:loses?|adds?|eats?|takes?).*(?:one|two|three|four|five)',
     ]
 
     for pattern in math_patterns:

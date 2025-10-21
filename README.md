@@ -59,7 +59,65 @@ Antonio Gemma3 Evo Q4 is not just another quantized LLM. It's a **micro-intellig
 
 ---
 
-## 🚀 Quick Start
+## 🎯 Two Ways to Use Antonio
+
+### Option A: Ollama Only (Simple Inference)
+
+Just want to chat? Use Ollama directly:
+
+```bash
+ollama run antconsales/antonio-gemma3-evo-q4
+```
+
+**What you get:**
+- ✅ Fast inference (3.32 t/s on Pi 4)
+- ✅ Bilingual chat (IT/EN)
+- ✅ Offline, privacy-first
+- ❌ **NO EvoMemory** (doesn't save conversations)
+- ❌ **NO RAG** (doesn't retrieve past experiences)
+- ❌ **NO auto-evolution** (doesn't generate rules)
+
+**Best for:** Quick tests, one-off questions, simple chatbot
+
+---
+
+### Option B: Full Evolution Stack (Self-Learning)
+
+Want EvoMemory™, RAG-Lite, and auto-evolution? Use the full Python stack:
+
+```bash
+git clone https://github.com/antconsales/antonio-gemma3-evo-q4.git
+cd antonio-gemma3-evo-q4
+bash scripts/install.sh
+uvicorn api.server:app --host 0.0.0.0 --port 8000
+```
+
+**What you get:**
+- ✅ **EvoMemory™** — Saves neurons from every conversation
+- ✅ **RAG-Lite** — Retrieves past experiences (BM25)
+- ✅ **Auto-evolution** — Generates reasoning rules over time
+- ✅ **Confidence scoring** — Knows when it's uncertain
+- ✅ **FastAPI server** — REST + WebSocket endpoints
+- ✅ **MCP-compatible** — Tool system ready
+
+**Best for:** 24/7 assistants, learning experiments, production deployment
+
+**Comparison:**
+
+| Feature | Ollama Only | Full Stack |
+|---------|-------------|------------|
+| Inference | ✅ | ✅ |
+| Speed | 3.32 t/s | 3.32 t/s |
+| EvoMemory (saves chats) | ❌ | ✅ |
+| RAG (retrieval) | ❌ | ✅ |
+| Auto-evolution (rules) | ❌ | ✅ |
+| Confidence scoring | ❌ | ✅ |
+| API endpoints | ❌ | ✅ |
+| Setup time | 1 minute | 5 minutes |
+
+---
+
+## 🚀 Quick Start (Full Stack)
 
 ### Prerequisites
 

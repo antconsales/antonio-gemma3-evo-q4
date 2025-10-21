@@ -1,0 +1,20 @@
+{
+  "generated_at": "2025-10-21T13:43:56.210764",
+  "rules_count": 2,
+  "rules": [
+    {
+      "rule_text": "Use high confidence for gpio_control tasks",
+      "trigger_pattern": "skill_id:gpio_control",
+      "confidence_threshold": 0.892,
+      "priority": 2,
+      "enabled": true
+    },
+    {
+      "rule_text": "Use high confidence for sensors tasks",
+      "trigger_pattern": "skill_id:sensors",
+      "confidence_threshold": 0.71,
+      "priority": 2,
+      "enabled": true
+    }
+  ]
+}

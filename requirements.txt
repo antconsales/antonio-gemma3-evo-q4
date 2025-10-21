@@ -1,0 +1,25 @@
+# Antonio Gemma3 Evo Q4 - Dependencies
+# Ottimizzato per Raspberry Pi 4
+
+# Web Framework (async)
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+websockets==12.0
+
+# Data validation
+pydantic==2.5.0
+
+# Database (built-in sqlite3)
+# No extra deps needed
+
+# Optional: GPIO per Raspberry Pi
+# RPi.GPIO==0.7.1  # Decommentare su Pi
+# pigpio==1.78     # Per PWM preciso
+
+# Optional: Voice (per future implementazioni)
+# sounddevice==0.4.6
+# numpy==1.24.3
+
+# Dev tools
+pytest==7.4.3
+black==23.11.0

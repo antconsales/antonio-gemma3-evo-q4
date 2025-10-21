@@ -74,9 +74,12 @@ ollama run antconsales/antonio-gemma3-evo-q4
 - ✅ Fast inference (3.32 t/s on Pi 4)
 - ✅ Bilingual chat (IT/EN)
 - ✅ Offline, privacy-first
+- ✅ **Optimized Modelfile** with step-by-step reasoning ⭐ NEW
 - ❌ **NO EvoMemory** (doesn't save conversations)
 - ❌ **NO RAG** (doesn't retrieve past experiences)
 - ❌ **NO auto-evolution** (doesn't generate rules)
+
+> 📄 **[View Modelfile Documentation](MODELFILE_GUIDE.md)** - Customization guide & test suite
 
 **Best for:** Quick tests, one-off questions, simple chatbot
 

@@ -20,8 +20,6 @@ from core.evomemory import EvoMemoryDB, Neuron, NeuronStore, RAGLite
 from core.question_classifier import classify_question, get_system_prompt, Complexity
 from core.metrics_collector import MetricsCollector
 from core.inference import LlamaInference, ConfidenceScorer
-from core.query_router import QueryRouter, QueryType
-from core.voice_prompts import get_prompt_for_mode
 
 
 # ============================================================================
@@ -32,7 +30,6 @@ class ChatRequest(BaseModel):
     message: str
     use_rag: bool = True
     skill_id: Optional[str] = None
-    voice_mode: bool = False  # Voice mode: fast, concise responses
 
 
 class ChatResponse(BaseModel):
@@ -88,15 +85,7 @@ class AppState:
         self.db: Optional[EvoMemoryDB] = None
         self.neuron_store: Optional[NeuronStore] = None
         self.rag: Optional[RAGLite] = None
-
-        # Dual model system
-        self.llama_fast: Optional[LlamaInference] = None  # Fast model for simple chat
-        self.llama_tools: Optional[LlamaInference] = None # Tool-aware model for complex tasks
-        self.query_router: QueryRouter = QueryRouter()
-
-        # Legacy support (points to fast model)
         self.llama: Optional[LlamaInference] = None
-
         self.scorer: ConfidenceScorer = ConfidenceScorer()
         self.start_time = datetime.now()
 
@@ -185,29 +174,16 @@ async def startup():
     state.rag = RAGLite(state.neuron_store)
     state.rag.index_neurons(max_neurons=500)
 
-    # LLM - Dual Model System
-    # Load both fast model (for simple chat) and tool model (for complex tasks)
-    print("🧠 Loading dual model system...")
-
+    # LLM
+    # Cerca il modello
+    # Use Ollama (always available on Pi)
     try:
-        # Fast model for simple conversations
-        state.llama_fast = LlamaInference(
+        state.llama = LlamaInference(
             model_path="antconsales/antonio-gemma3-evo-q4"
         )
-        print("  ✓ Fast model loaded: antconsales/antonio-gemma3-evo-q4")
-
-        # Tool-aware model for complex tasks
-        state.llama_tools = LlamaInference(
-            model_path="antonio-tools"
-        )
-        print("  ✓ Tool model loaded: antonio-tools (fine-tuned)")
-
-        # Legacy support - point to fast model
-        state.llama = state.llama_fast
-
-        print("✓ Dual model system ready - automatic routing enabled!")
+        print("✓ Loaded model via Ollama: antconsales/antonio-gemma3-evo-q4")
     except Exception as e:
-        print(f"⚠️  Warning: Could not load models: {e}")
+        print(f"⚠️  Warning: Could not load Ollama model: {e}")
         print("⚠️  Running in API-only mode")
 
     stats = state.db.get_stats()
@@ -230,17 +206,11 @@ async def shutdown():
 @app.get("/")
 async def root():
     """Health check"""
-    mode = "dual-model" if (state.llama_fast and state.llama_tools) else "api-only"
     return {
         "status": "online",
-        "name": "Antonio Gemma3 Evo Q4 - Dual Model System",
-        "version": "0.2.0",
-        "mode": mode,
-        "models": {
-            "fast": "antconsales/antonio-gemma3-evo-q4" if state.llama_fast else None,
-            "tools": "antonio-tools" if state.llama_tools else None,
-        },
-        "routing": "automatic"
+        "name": "Antonio Gemma3 Evo Q4",
+        "version": "0.1.0",
+        "mode": "full" if state.llama else "api-only",
     }
 
 
@@ -269,36 +239,14 @@ async def get_metrics():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """Chat endpoint principale con ottimizzazioni voice mode"""
+    """Chat endpoint principale"""
 
-    if not state.llama_fast or not state.llama_tools:
+    if not state.llama:
         raise HTTPException(status_code=503, detail="LLM not loaded")
-
-    # 🧠 AUTOMATIC MODEL ROUTING
-    # Use query router to select appropriate model
-    selected_model_name, routing_reason = state.query_router.get_model_for_query(request.message)
-    query_type, _ = state.query_router.classify(request.message)
-
-    # Select the actual model instance
-    if "antonio-tools" in selected_model_name:
-        selected_model = state.llama_tools
-        model_label = "🔧 TOOL"
-    else:
-        selected_model = state.llama_fast
-        model_label = "⚡ FAST"
-
-    mode_emoji = "🎤" if request.voice_mode else "💬"
-    print(f"[{model_label}] [{mode_emoji}] {request.message[:40]}... | {routing_reason}")
-
-    # 🚀 VOICE MODE OPTIMIZATIONS
-    # Disable RAG for simple queries in voice mode (saves ~200ms)
-    use_rag_this_request = request.use_rag
-    if request.voice_mode and query_type == QueryType.SIMPLE:
-        use_rag_this_request = False
 
     # RAG context
     rag_context = ""
-    if use_rag_this_request:
+    if request.use_rag:
         rag_context = state.rag.get_context_for_prompt(request.message)
 
     # Build prompt
@@ -306,34 +254,14 @@ async def chat(request: ChatRequest):
     if rag_context:
         user_prompt = f"{rag_context}\n### Domanda attuale:\n{request.message}"
 
-    # 🎯 Select prompt based on mode
-    if request.voice_mode:
-        # Ultra-concise prompt for voice
-        system_prompt = get_prompt_for_mode(voice_mode=True)
-    else:
-        # Normal adaptive prompt for text
-        complexity, complexity_reason = classify_question(request.message)
-        system_prompt = get_system_prompt(complexity)
+    # Classify question complexity for adaptive prompting
+    complexity, _ = classify_question(request.message)
+    adaptive_prompt = get_system_prompt(complexity)
 
-    # 🔧 Voice mode generation parameters
-    gen_params = {}
-    if request.voice_mode:
-        gen_params = {
-            "num_predict": 50,      # Max 50 tokens = ~2 sentences
-            "num_ctx": 512,          # Reduced context for speed
-            "temperature": 0.7,
-        }
-    else:
-        gen_params = {
-            "num_predict": 256,      # Normal length
-            "num_ctx": 1024,         # Full context
-        }
-
-    # Generate with selected model
-    result = selected_model.generate(
+    # Generate
+    result = state.llama.generate(
         prompt=user_prompt,
-        system_prompt=system_prompt,
-        params=gen_params,
+        system_prompt=adaptive_prompt,
     )
 
     # Score confidence
@@ -362,22 +290,20 @@ async def chat(request: ChatRequest):
     if neuron_count % 10 == 0:
         state.rag.index_neurons(max_neurons=500)
 
-
-
+    
+    
     # Log metrics for adaptive prompting analysis
-    if not request.voice_mode:
-        # Only log metrics in text mode (voice mode uses different prompting)
-        import time
-        metrics.log_request(
-            question=request.message,
-            complexity=complexity if not request.voice_mode else Complexity.SIMPLE,
-            complexity_reason=complexity_reason if not request.voice_mode else "voice_mode",
-            response=result["output"],
-            tokens_generated=result["tokens_generated"],
-            tokens_per_second=result["tokens_per_second"],
-            response_time_ms=result.get("response_time_ms", 0),
-            confidence=confidence
-        )
+    import time
+    metrics.log_request(
+        question=request.message,
+        complexity=complexity,
+        complexity_reason=complexity_reason,
+        response=result["output"],
+        tokens_generated=result["tokens_generated"],
+        tokens_per_second=result["tokens_per_second"],
+        response_time_ms=result.get("response_time_ms", 0),
+        confidence=confidence
+    )
 
     return ChatResponse(
         response=result["output"],

@@ -7,7 +7,6 @@ from .inference import LlamaInference, ConfidenceScorer
 from .growth import Rule, RuleGenerator
 from .tools import ActionBroker, ToolResult, ToolType
 from .tools.gpio import GPIOController, PinMode, PullMode
-from .query_router import QueryRouter, QueryType
 
 __all__ = [
     # EvoMemory
@@ -18,9 +17,6 @@ __all__ = [
     # Inference
     "LlamaInference",
     "ConfidenceScorer",
-    # Routing
-    "QueryRouter",
-    "QueryType",
     # Growth
     "Rule",
     "RuleGenerator",
